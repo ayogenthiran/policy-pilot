@@ -144,24 +144,50 @@ export default function TestPage() {
             
             <div className="space-y-4">
               <p className="text-sm text-gray-600">
-                This endpoint currently returns a placeholder response. 
-                Your teammate will implement the actual file upload functionality.
+                This endpoint simulates file upload scenarios including both success and various failure cases.
+                It has a 20% chance of simulating different upload failures for testing purposes.
               </p>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                <h4 className="text-sm font-medium text-yellow-800 mb-1">Simulated Failure Types:</h4>
+                <ul className="text-xs text-yellow-700 space-y-1">
+                                     <li>• File too large (&gt;10MB)</li>
+                  <li>• Unsupported file type</li>
+                  <li>• Network upload failure</li>
+                  <li>• Security threat detected</li>
+                </ul>
+              </div>
 
               <button
                 onClick={testUploadAPI}
                 disabled={loading.upload}
                 className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading.upload ? 'Testing...' : 'Test Upload API'}
+                {loading.upload ? 'Testing Upload...' : 'Test Upload API (Random Success/Failure)'}
               </button>
 
               {uploadResponse && (
-                <div className="mt-4 p-4 bg-gray-100 rounded-md">
-                  <h3 className="font-medium text-gray-800 mb-2">Response:</h3>
-                  <pre className="text-sm text-gray-600 whitespace-pre-wrap">
+                <div className={`mt-4 p-4 rounded-md ${
+                  'error' in uploadResponse 
+                    ? 'bg-red-50 border border-red-200' 
+                    : 'bg-green-50 border border-green-200'
+                }`}>
+                  <h3 className={`font-medium mb-2 ${
+                    'error' in uploadResponse ? 'text-red-800' : 'text-green-800'
+                  }`}>
+                    {'error' in uploadResponse ? '❌ Upload Failed' : '✅ Upload Successful'}
+                  </h3>
+                  <pre className={`text-sm whitespace-pre-wrap ${
+                    'error' in uploadResponse ? 'text-red-600' : 'text-green-600'
+                  }`}>
                     {JSON.stringify(uploadResponse, null, 2)}
                   </pre>
+                  
+                  {'error' in uploadResponse && (
+                    <div className="mt-2 text-xs text-red-600">
+                      <strong>Tip:</strong> In a real app, you would handle this error and show a user-friendly message.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
