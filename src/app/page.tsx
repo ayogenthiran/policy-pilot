@@ -337,7 +337,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-8 ">
+      <div className="flex-1 p-8">
         <div className="flex items-center justify-center h-full">{renderContent()}</div>
       </div>
     </div>
