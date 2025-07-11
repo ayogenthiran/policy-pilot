@@ -29,7 +29,7 @@ export default function LoginForm() {
     } else {
       setSuccess(true)
       setTimeout(() => {
-        router.push('/dashboard')
+        router.push('/')
       }, 1500)
     }
   }

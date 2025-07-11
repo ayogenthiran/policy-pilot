@@ -15,16 +15,15 @@ interface ChatMessage {
 }
 
 export default function HomePage() {
-  const { user, loading } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!loading) {
-      if (user) {
-        router.push('/dashboard')
-      } else {
+      if (!user) {
         router.push('/auth/login')
       }
+      // If user is authenticated, stay on the main page with upload/chat functionality
     }
   }, [user, loading, router])
 
@@ -324,42 +323,121 @@ export default function HomePage() {
   }
 
   // Show loading while determining auth state
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+        
+        <style jsx>{`
+          .loading-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          }
+
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+          }
+
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+
+          p {
+            color: white;
+            font-size: 16px;
+          }
+        `}</style>
+      </div>
+    )
+  }
+
+  // Main app UI for authenticated users
   return (
-    <div className="loading-container">
-      <div className="loading-spinner"></div>
-      <p>Loading...</p>
-      
-      <style jsx>{`
-        .loading-container {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Navigation Header */}
+      <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                Policy Pilot
+              </h1>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Welcome, {user?.email}!
+              </span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => signOut()}
+                className="bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
 
-        .loading-spinner {
-          width: 40px;
-          height: 40px;
-          border: 4px solid rgba(255, 255, 255, 0.3);
-          border-top: 4px solid white;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin-bottom: 16px;
-        }
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Upload & Chat
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300">
+              Upload documents and chat with AI assistance
+            </p>
+          </div>
 
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
+          {/* Navigation Tabs */}
+          <div className="flex justify-center mb-8">
+            <div className="flex bg-white dark:bg-gray-800 rounded-lg shadow-sm p-1">
+              {navigationItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === item.key
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
-        p {
-          color: white;
-          font-size: 16px;
-        }
-      `}</style>
+          {/* Content Area */}
+          <div className="flex justify-center">
+            {renderContent()}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
