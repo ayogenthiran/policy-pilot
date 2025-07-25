@@ -24,3 +24,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Hide potential external floating elements/overlays */
+[class*="floating"], 
+[class*="overlay"], 
+[id*="floating"],
+[id*="overlay"],
+div[style*="position: fixed"][style*="bottom"],
+div[style*="position: fixed"][style*="z-index: 999"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Specific patterns for common chat widgets and accessibility overlays */
+div[style*="position: fixed"][style*="left: 0"][style*="bottom: 0"],
+div[style*="position: fixed"][style*="right: 0"][style*="bottom: 0"] {
+  display: none !important;
+}
+
+/* Hide elements that look like the N button */
+div[style*="width: 40px"][style*="height: 40px"][style*="border-radius"],
+div[style*="width: 48px"][style*="height: 48px"][style*="border-radius"] {
+  display: none !important;
+}

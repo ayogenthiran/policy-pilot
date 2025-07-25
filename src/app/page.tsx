@@ -19,12 +19,10 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push('/auth/login')
-      }
-      // If user is authenticated, stay on the main page with upload/chat functionality
+    if (!loading && !user) {
+      router.push('/auth/login')
     }
+    // If user is authenticated, stay on the main page with upload/chat functionality
   }, [user, loading, router])
 
   const [activeTab, setActiveTab] = useState("upload")
@@ -375,17 +373,8 @@ export default function HomePage() {
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                 Policy Pilot
               </h1>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Welcome, {user?.email}!
-              </span>
             </div>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Dashboard
-              </button>
               <button
                 onClick={() => signOut()}
                 className="bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600 transition-colors"
