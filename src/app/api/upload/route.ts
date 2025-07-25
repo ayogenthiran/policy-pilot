@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import pdfParse from 'pdf-parse';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import OpenAI from "openai";
+import { createClient } from '@supabase/supabase-js'
+import { v4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,13 +30,32 @@ export async function POST(request: NextRequest) {
   try {
     const data = await pdfParse(buffer);
     const file_content = data.text
+    const openai = new OpenAI();
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL , process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    //text splitter
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1024,
       chunkOverlap: 20
     });
     const output = await splitter.splitText(file_content);
-    console.log(output[0])
-    console.log("\n_________")
+
+    // embedding gen text-embedding-3-small $0.02/1M
+    for (const chuck of output) {
+      const embedding = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: chuck,
+        encoding_format: "float",
+      });
+      //console.log(embedding.data[0]["embedding"]) //embedding is a list with one element. the element is a dict with object, index, and embedding
+      const { error } = await supabase
+      .from('embeddings')
+      .insert({ id: v4(), content: chuck,metadata: null,embedding: embedding.data[0]["embedding"]})
+      console.log(error)
+    }
+
+    //insert into supabase
+
+
     return NextResponse.json({ textPreview: data.text.slice(0, 500) }); // return first 500 chars
   } catch (error) {
     console.error("Failed to parse PDF:", error);
