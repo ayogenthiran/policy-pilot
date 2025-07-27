@@ -1,126 +1,70 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { UploadResponse, ErrorResponse } from '../types';
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
-}
+import { type NextRequest, NextResponse } from "next/server"
+import pdfParse from 'pdf-parse';
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import OpenAI from "openai";
+import { createClient } from '@supabase/supabase-js'
+import { v4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    // Simulate different upload scenarios for testing
-    // In real implementation, this would be actual file processing logic
-    
-    // Get content type to validate file upload
-    const contentType = request.headers.get('content-type');
-    
-    // Simulate upload validation failures
-    if (contentType && contentType.includes('application/json')) {
-      // If JSON is sent instead of file, return validation error
-      const errorResponse: ErrorResponse = {
-        error: 'INVALID_FILE_TYPE',
-        message: 'No file provided. Please upload a valid document file.',
-      };
-      return NextResponse.json(errorResponse, {
-        status: 400,
-        headers: corsHeaders,
-      });
+    const formData = await request.formData()
+    const file = formData.get("file") as File
+    if (!file) {
+      return NextResponse.json({ message: "No file uploaded" }, { status: 400 })
     }
 
-    // Simulate random upload failures for testing (20% chance)
-    const shouldSimulateFailure = Math.random() < 0.2;
-    
-    if (shouldSimulateFailure) {
-      // Simulate different types of upload failures
-      const failureTypes = [
-        {
-          error: 'FILE_TOO_LARGE',
-          message: 'File size exceeds maximum limit of 10MB',
-          status: 413
-        },
-        {
-          error: 'UNSUPPORTED_FILE_TYPE',
-          message: 'File type not supported. Please upload PDF, DOC, or TXT files only.',
-          status: 400
-        },
-        {
-          error: 'UPLOAD_FAILED',
-          message: 'File upload failed due to network error. Please try again.',
-          status: 500
-        },
-        {
-          error: 'VIRUS_DETECTED',
-          message: 'File upload blocked. Potential security threat detected.',
-          status: 400
-        }
-      ];
-
-      const randomFailure = failureTypes[Math.floor(Math.random() * failureTypes.length)];
-      
-      console.log('Simulated upload failure:', randomFailure.error);
-      
-      const errorResponse: ErrorResponse = {
-        error: randomFailure.error,
-        message: randomFailure.message,
-      };
-      
-      return NextResponse.json(errorResponse, {
-        status: randomFailure.status,
-        headers: corsHeaders,
-      });
+    // Validate file type
+    if (file.type !== "application/pdf") {
+      return NextResponse.json({ message: "Only PDF files are supported" }, { status: 400 })
     }
 
-    // Simulate successful upload
-    // Generate a more realistic file ID (in real implementation, this would be generated after processing the file)
-    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Validate file size (optional - limit to 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json({ message: "File size must be less than 10MB" }, { status: 400 })
+    }
+      // insert doc processing here
+    
+    const arrayBuffer = await file.arrayBuffer(); //read file content into arraybuffer
+    const buffer = Buffer.from(arrayBuffer); //convert arraybuffer to Buffer. pdfParse expect Buffer 
 
-    const response: UploadResponse = {
-      fileId: fileId,
-      status: 'uploaded',
-    };
+    try {
+      const data = await pdfParse(buffer);
+      const file_content = data.text
+      const openai = new OpenAI();
+      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL , process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      //text splitter
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1024,
+        chunkOverlap: 20
+      });
+      const output = await splitter.splitText(file_content);
 
-    console.log('Simulated successful upload:', fileId);
-
-    return NextResponse.json(response, {
-      status: 200,
-      headers: corsHeaders,
-    });
-
-  } catch (error) {
-    console.error('Upload API error:', error);
-
-    // Handle specific error types
-    if (error instanceof Error) {
-      // File parsing or processing errors
-      if (error.name === 'PayloadTooLargeError') {
-        const errorResponse: ErrorResponse = {
-          error: 'FILE_TOO_LARGE',
-          message: 'File size exceeds maximum limit',
-        };
-        return NextResponse.json(errorResponse, {
-          status: 413,
-          headers: corsHeaders,
+      // embedding gen text-embedding-3-small $0.02/1M
+      for (const chuck of output) {
+        const embedding = await openai.embeddings.create({
+          model: "text-embedding-3-small",
+          input: chuck,
+          encoding_format: "float",
         });
+        //console.log(embedding.data[0]["embedding"]) //embedding is a list with one element. the element is a dict with object, index, and embedding
+        const { error } = await supabase
+        .from('embeddings')
+        .insert({ id: v4(), content: chuck,metadata: null,embedding: embedding.data[0]["embedding"], file_name: "test"})
+        if (error){
+          console.log(error)
+        }
       }
+    } catch (error) {
+      console.error("Failed to parse PDF:", error);
+      return NextResponse.json({ message: "Failed to read PDF" }, { status: 500 });
     }
 
-    // Generic server error for unexpected issues
-    const errorResponse: ErrorResponse = {
-      error: 'INTERNAL_ERROR',
-      message: 'An unexpected error occurred during upload',
-    };
-    return NextResponse.json(errorResponse, {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return NextResponse.json({
+      message: `Successfully uploaded "${file.name}" (${(file.size / 1024).toFixed(1)} KB). File has been processed and is ready for use.`,
+    })
+  } catch (error) {
+    console.error("Upload error:", error)
+    return NextResponse.json({ message: "An error occurred while uploading the file" }, { status: 500 })
   }
-} 
+}
