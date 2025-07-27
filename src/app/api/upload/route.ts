@@ -49,9 +49,12 @@ export async function POST(request: NextRequest) {
       //console.log(embedding.data[0]["embedding"]) //embedding is a list with one element. the element is a dict with object, index, and embedding
       const { error } = await supabase
       .from('embeddings')
-      .insert({ id: v4(), content: chuck,metadata: null,embedding: embedding.data[0]["embedding"]})
-      console.log(error)
-    }
+      .insert({ id: v4(), content: chuck,metadata: null,embedding: embedding.data[0]["embedding"], file_name: "test"})
+      if (error){
+        console.log(error)
+      }
+
+    
 
     //insert into supabase
 
