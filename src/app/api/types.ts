@@ -1,8 +1,12 @@
 // Request/Response types for PolicyPilot API routes
 
 export interface ChatRequest {
-  question: string;
+  question?: string;
+  message?: string;
   fileId?: string;
+  fileName?: string;
+  useHybridSearch?: boolean;
+  matchThreshold?: number;
 }
 
 export interface ChatResponse {

@@ -12,6 +12,7 @@ interface ChatMessage {
   content: string
   role: "user" | "assistant"
   timestamp: Date
+  sources?: string[]
 }
 
 export default function HomePage() {
@@ -130,6 +131,8 @@ export default function HomePage() {
     setIsSendingMessage(true)
 
     try {
+      console.log('Sending chat request:', { message: userMessage })
+      
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -138,21 +141,26 @@ export default function HomePage() {
         body: JSON.stringify({ message: userMessage }),
       })
 
+      console.log('Chat response status:', response.status)
       const result = await response.json()
+      console.log('Chat response result:', result)
 
       if (response.ok) {
         // Add assistant response to chat
         const assistantMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
-          content: result.message,
+          content: result.answer || result.message, // Support both new and old format
           role: "assistant",
           timestamp: new Date(),
+          sources: result.sources, // Include sources if available
         }
         setChatMessages((prev) => [...prev, assistantMessage])
       } else {
+        console.error('Chat API error:', result)
         setChatError(result.message || "Failed to send message")
       }
     } catch (error) {
+      console.error('Network error:', error)
       setChatError("Network error occurred while sending message")
     } finally {
       setIsSendingMessage(false)
@@ -261,6 +269,18 @@ export default function HomePage() {
                         }`}
                       >
                         <p className="text-sm text-gray-800 dark:text-gray-200">{message.content}</p>
+                        {message.sources && message.sources.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Sources:</p>
+                            <div className="space-y-1">
+                              {message.sources.map((source, index) => (
+                                <p key={index} className="text-xs text-blue-600 dark:text-blue-400">
+                                  • {source}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {message.timestamp.toLocaleTimeString()}
                         </p>
