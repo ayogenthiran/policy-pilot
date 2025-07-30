@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AuthContainer from '@/components/auth/AuthContainer'
 
@@ -15,12 +15,11 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
   
   const router = useRouter()
-  const searchParams = useSearchParams()
   const supabase = createClient()
 
   useEffect(() => {
     // Handle the password reset session
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'PASSWORD_RECOVERY') {
         // The user has clicked the reset password link
         // They are now logged in with a temporary session

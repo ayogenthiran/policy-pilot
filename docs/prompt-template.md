@@ -97,7 +97,7 @@ const answer = await generateAnswer(question, context)
 
 ## Testing
 
-The `prompt-template.test.ts` file contains examples demonstrating:
+The `examples/prompt-template-demo.ts` file contains examples demonstrating:
 - Basic prompt generation
 - Handling insufficient context
 - Specific question answering

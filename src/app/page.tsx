@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react"
 import { Upload, MessageCircle, X, CheckCircle, AlertCircle, Send } from "lucide-react"
 import { useAuth } from '@/components/auth/AuthProvider'
 import { useRouter } from 'next/navigation'
+import ThemeToggle from '@/components/ThemeToggle'
 
 interface ChatMessage {
   id: string
@@ -33,14 +34,7 @@ export default function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Chat state
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      content: "Hello! How can I help you today?",
-      role: "assistant",
-      timestamp: new Date(),
-    },
-  ])
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState("")
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
@@ -94,7 +88,7 @@ export default function HomePage() {
         setUploadMessage(result.message || "Upload failed")
         setMessageType("error")
       }
-    } catch (error) {
+    } catch {
       setUploadMessage("Network error occurred while uploading")
       setMessageType("error")
     } finally {
@@ -159,8 +153,7 @@ export default function HomePage() {
         console.error('Chat API error:', result)
         setChatError(result.message || "Failed to send message")
       }
-    } catch (error) {
-      console.error('Network error:', error)
+    } catch {
       setChatError("Network error occurred while sending message")
     } finally {
       setIsSendingMessage(false)
@@ -259,6 +252,23 @@ export default function HomePage() {
                 {/* Chat Messages */}
                 <div className="h-96 border rounded-lg p-4 bg-gray-50 dark:bg-gray-800 dark:border-gray-600 overflow-y-auto">
                   <div className="space-y-3">
+                    {/* Welcome Message */}
+                    {chatMessages.length === 0 && (
+                      <div className="flex flex-col items-center justify-center h-full text-center">
+                        <div className="mb-4">
+                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <span className="text-white text-xl">📄</span>
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                            Policy Assistant
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+                            Hi! I'm your Policy Assistant. Upload documents and ask me anything about your policies! 📄✨
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
                     {chatMessages.map((message) => (
                       <div
                         key={message.id}
@@ -281,9 +291,6 @@ export default function HomePage() {
                             </div>
                           </div>
                         )}
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
                       </div>
                     ))}
                     {isSendingMessage && (
@@ -318,7 +325,7 @@ export default function HomePage() {
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Type your message..."
+                    placeholder="Ask about your policy documents..."
                     disabled={isSendingMessage}
                     className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                   />
@@ -395,6 +402,7 @@ export default function HomePage() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <button
                 onClick={() => signOut()}
                 className="bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600 transition-colors"

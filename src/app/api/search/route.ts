@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // First, let's check what's in the database for debugging
-    const { data: allEmbeddings, error: dbError } = await supabase
+    const { data: allEmbeddings } = await supabase
       .from('embeddings')
       .select('id, content, file_name, embedding')
       .limit(5)
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get search statistics
     const stats = await getSearchStats()

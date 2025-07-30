@@ -42,17 +42,17 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Prepare context from search results
     let context = ""
-    let sources: string[] = []
+    const sources: string[] = []
 
     if (searchResults.length > 0) {
       // Combine relevant chunks into context
       context = searchResults
-        .map((result: any, index: number) => {
+        .map((result: { file_name?: string; content?: string }, index: number) => {
           const source = result.file_name || `Document ${index + 1}`
           if (!sources.includes(source)) {
             sources.push(source)
           }
-          return `[Source: ${source}]\n${result.content}\n`
+          return `[Source: ${source}]\n${result.content || ''}\n`
         })
         .join('\n---\n')
     } else {

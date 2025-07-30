@@ -129,3 +129,6 @@ jspm_packages/
 # Temporary folders
 tmp/
 temp/
+
+# Test files for pdf-parse dependency
+/test/

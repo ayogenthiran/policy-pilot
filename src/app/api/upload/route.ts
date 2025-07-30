@@ -3,6 +3,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import OpenAI from "openai";
 import { createClient } from '@supabase/supabase-js'
 import { v4 } from "uuid";
+import pdf from 'pdf-parse';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +24,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "File size must be less than 10MB" }, { status: 400 })
     }
 
-    // For now, we'll just accept the file without parsing
-    // TODO: Implement PDF parsing with a reliable library
-    const file_content = `Sample text from ${file.name}. PDF parsing will be implemented soon.`;
+    // Parse PDF content
+    let file_content: string;
+    try {
+      console.log(`Starting PDF parsing for file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const pdfData = await pdf(buffer);
+      file_content = pdfData.text;
+      
+      // Validate that we extracted some text
+      if (!file_content || file_content.trim().length === 0) {
+        console.warn(`No text extracted from PDF: ${file.name}`);
+        return NextResponse.json({ 
+          message: "Could not extract text from PDF. The file might be empty, corrupted, or contain only images." 
+        }, { status: 400 });
+      }
+      
+      // Log parsing statistics
+      console.log(`✅ Successfully extracted ${file_content.length} characters from PDF: ${file.name}`);
+      console.log(`📄 PDF Info: ${pdfData.numpages} pages, ${pdfData.info?.Title || 'No title'}`);
+      
+    } catch (pdfError) {
+      console.error("❌ PDF parsing error:", pdfError);
+      return NextResponse.json({ 
+        message: "Failed to parse PDF file. Please ensure the file is not corrupted and contains extractable text." 
+      }, { status: 400 });
+    }
 
     const openai = new OpenAI();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,30 +63,63 @@ export async function POST(request: NextRequest) {
     
     const supabase = createClient(supabaseUrl, supabaseKey)
     //text splitter
+    // Create text chunks for vector search
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1024,
       chunkOverlap: 20
     });
     const output = await splitter.splitText(file_content);
-
-    // embedding gen text-embedding-3-small $0.02/1M
-    for (const chuck of output) {
-      const embedding = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: chuck,
-        encoding_format: "float",
-      });
-      //console.log(embedding.data[0]["embedding"]) //embedding is a list with one element. the element is a dict with object, index, and embedding
-      const { error } = await supabase
-      .from('embeddings')
-      .insert({ id: v4(), content: chuck,metadata: null,embedding: embedding.data[0]["embedding"], file_name: file.name})
-      if (error){
-        console.log(error)
-      }
+    
+    console.log(`📝 Created ${output.length} text chunks from ${file.name}`);
+    
+    if (output.length === 0) {
+      return NextResponse.json({ 
+        message: "Failed to create text chunks from the PDF content." 
+      }, { status: 500 });
     }
 
+    // Generate embeddings for each chunk
+    console.log(`🔍 Generating embeddings for ${output.length} chunks...`);
+    let successfulEmbeddings = 0;
+    
+    for (let i = 0; i < output.length; i++) {
+      const chunk = output[i];
+      try {
+        const embedding = await openai.embeddings.create({
+          model: "text-embedding-3-small",
+          input: chunk,
+          encoding_format: "float",
+        });
+        
+        const { error } = await supabase
+          .from('embeddings')
+          .insert({ 
+            id: v4(), 
+            content: chunk,
+            metadata: null,
+            embedding: embedding.data[0]["embedding"], 
+            file_name: file.name
+          });
+          
+        if (error) {
+          console.error(`❌ Failed to store embedding ${i + 1}:`, error);
+        } else {
+          successfulEmbeddings++;
+        }
+        
+        // Log progress every 5 chunks
+        if ((i + 1) % 5 === 0 || i === output.length - 1) {
+          console.log(`📊 Progress: ${i + 1}/${output.length} chunks processed`);
+        }
+      } catch (embeddingError) {
+        console.error(`❌ Failed to generate embedding for chunk ${i + 1}:`, embeddingError);
+      }
+    }
+    
+    console.log(`✅ Successfully processed ${successfulEmbeddings}/${output.length} chunks for ${file.name}`);
+
     return NextResponse.json({
-      message: `Successfully uploaded "${file.name}" (${(file.size / 1024).toFixed(1)} KB). File has been processed and is ready for use.`,
+      message: `Successfully uploaded "${file.name}" (${(file.size / 1024).toFixed(1)} KB). Extracted ${file_content.length} characters, created ${output.length} chunks, and processed ${successfulEmbeddings} embeddings. File is ready for use.`,
     })
   } catch (error) {
     console.error("Upload error:", error)

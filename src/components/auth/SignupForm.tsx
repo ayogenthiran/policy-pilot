@@ -55,7 +55,7 @@ export default function SignupForm() {
       <div className="success-message">
         <div className="success-icon">✓</div>
         <h3>Check your email!</h3>
-        <p>We've sent you a confirmation link to complete your registration.</p>
+        <p>We&apos;ve sent you a confirmation link to complete your registration.</p>
         <Link href="/auth/login" className="back-to-login">
           Back to Sign In
         </Link>

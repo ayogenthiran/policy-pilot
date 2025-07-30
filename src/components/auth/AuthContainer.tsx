@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import ThemeToggle from '@/components/ThemeToggle'
 
 interface AuthContainerProps {
   children: React.ReactNode
@@ -11,6 +12,9 @@ interface AuthContainerProps {
 export default function AuthContainer({ children, title, subtitle }: AuthContainerProps) {
   return (
     <div className="auth-page-wrapper">
+      <div className="theme-toggle-container">
+        <ThemeToggle />
+      </div>
       <div className="auth-container">
         <div className="auth-header">
           <h1 className="auth-title">{title}</h1>
@@ -29,6 +33,18 @@ export default function AuthContainer({ children, title, subtitle }: AuthContain
           align-items: center;
           justify-content: center;
           padding: 20px;
+          position: relative;
+        }
+
+        :global(.dark) .auth-page-wrapper {
+          background: #0a0a0a;
+        }
+
+        .theme-toggle-container {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          z-index: 10;
         }
 
         .auth-container {
@@ -40,6 +56,11 @@ export default function AuthContainer({ children, title, subtitle }: AuthContain
           max-width: 400px;
           position: relative;
           animation: slideIn 0.6s ease-out;
+        }
+
+        :global(.dark) .auth-container {
+          background: #1a1a1a;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
         }
 
         @keyframes slideIn {
@@ -65,11 +86,19 @@ export default function AuthContainer({ children, title, subtitle }: AuthContain
           margin-bottom: 8px;
         }
 
+        :global(.dark) .auth-title {
+          color: #ededed;
+        }
+
         .auth-subtitle {
           font-size: 16px;
           color: #666;
           font-weight: 400;
           line-height: 1.4;
+        }
+
+        :global(.dark) .auth-subtitle {
+          color: #a0a0a0;
         }
 
 

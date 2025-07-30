@@ -129,7 +129,8 @@ async function searchSimilarChunksDirect(
       .filter(chunk => chunk!.similarity >= matchThreshold) // Apply threshold
       .sort((a, b) => b!.similarity - a!.similarity)
       .slice(0, topK)
-      .map(({ embedding, similarity, ...chunk }) => chunk) // Remove embedding from response
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    .map(({ embedding, similarity, ...chunk }) => chunk) // Remove embedding from response
     
     return chunksWithSimilarity
   } catch (error) {
@@ -177,8 +178,7 @@ export async function searchSimilarChunksEnhanced(
     fileName,
     topK = 5,
     matchThreshold = 0.7,
-    useHybridSearch = false,
-    includeMetadata = true
+    useHybridSearch = false
   } = options
 
   try {
@@ -233,8 +233,8 @@ async function searchByKeywords(query: string, fileName?: string, topK: number =
 
 // Merge and rank search results
 function mergeSearchResults(
-  vectorResults: any[],
-  keywordResults: any[],
+  vectorResults: Array<{ id: string; [key: string]: unknown }>,
+  keywordResults: Array<{ id: string; [key: string]: unknown }>,
   topK: number
 ) {
   const merged = new Map()
@@ -271,6 +271,7 @@ function mergeSearchResults(
   return Array.from(merged.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, topK)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .map(({ score, source, ...result }) => result) // Remove scoring info from response
 }
 

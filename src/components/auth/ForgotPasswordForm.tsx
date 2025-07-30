@@ -33,8 +33,8 @@ export default function ForgotPasswordForm() {
       <div className="success-message">
         <div className="success-icon">✓</div>
         <h3>Check your email!</h3>
-        <p>We've sent a password reset link to <strong>{email}</strong></p>
-        <p className="small-text">Didn't receive the email? Check your spam folder or try again.</p>
+        <p>We&apos;ve sent a password reset link to <strong>{email}</strong></p>
+        <p className="small-text">Didn&apos;t receive the email? Check your spam folder or try again.</p>
         <Link href="/auth/login" className="back-to-login">
           Back to Sign In
         </Link>
@@ -106,7 +106,7 @@ export default function ForgotPasswordForm() {
         )}
 
         <div className="form-description">
-          <p>Enter your email address and we'll send you a link to reset your password.</p>
+          <p>Enter your email address and we&apos;ll send you a link to reset your password.</p>
         </div>
 
         <div className="form-group">
