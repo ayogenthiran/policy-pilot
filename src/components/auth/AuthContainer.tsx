@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import ThemeToggle from '@/components/ThemeToggle'
+import ThemeToggle from '@/components/theme-toggle'
 
 interface AuthContainerProps {
   children: React.ReactNode

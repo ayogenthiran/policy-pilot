@@ -1,460 +1,181 @@
 "use client"
 
-import type React from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { FileText, MessageCircle, BarChart3, ArrowRight, Sparkles, Shield, Zap } from "lucide-react"
+import Link from "next/link"
+import ThemeToggle from "@/components/theme-toggle"
 
-import { useState, useRef, useEffect } from "react"
-import { Upload, MessageCircle, X, CheckCircle, AlertCircle, Send } from "lucide-react"
-import { useAuth } from '@/components/auth/AuthProvider'
-import { useRouter } from 'next/navigation'
-import ThemeToggle from '@/components/ThemeToggle'
-
-interface ChatMessage {
-  id: string
-  content: string
-  role: "user" | "assistant"
-  timestamp: Date
-  sources?: string[]
-}
-
-export default function HomePage() {
-  const { user, loading, signOut } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login')
-    }
-    // If user is authenticated, stay on the main page with upload/chat functionality
-  }, [user, loading, router])
-
-  const [activeTab, setActiveTab] = useState("upload")
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
-  const [messageType, setMessageType] = useState<"success" | "error">("success")
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Chat state
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [isSendingMessage, setIsSendingMessage] = useState(false)
-  const [chatError, setChatError] = useState<string | null>(null)
-
-  const navigationItems = [
-    {
-      key: "upload",
-      label: "Upload",
-      icon: Upload,
-    },
-    {
-      key: "chat",
-      label: "Chat",
-      icon: MessageCircle,
-    },
-  ]
-
-  const handleFileSelect = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // Validate file type on frontend as well
-    if (file.type !== "application/pdf") {
-      setUploadMessage("Only PDF files are supported")
-      setMessageType("error")
-      return
-    }
-
-    setIsUploading(true)
-    setUploadMessage(null)
-
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      const result = await response.json()
-
-      if (response.ok) {
-        setUploadMessage(result.message)
-        setMessageType("success")
-      } else {
-        setUploadMessage(result.message || "Upload failed")
-        setMessageType("error")
-      }
-    } catch {
-      setUploadMessage("Network error occurred while uploading")
-      setMessageType("error")
-    } finally {
-      setIsUploading(false)
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
-    }
-  }
-
-  const closeMessage = () => {
-    setUploadMessage(null)
-  }
-
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!chatInput.trim() || isSendingMessage) return
-
-    const userMessage = chatInput.trim()
-    setChatInput("")
-    setChatError(null)
-
-    // Add user message to chat
-    const newUserMessage: ChatMessage = {
-      id: Date.now().toString(),
-      content: userMessage,
-      role: "user",
-      timestamp: new Date(),
-    }
-
-    setChatMessages((prev) => [...prev, newUserMessage])
-    setIsSendingMessage(true)
-
-    try {
-      console.log('Sending chat request:', { message: userMessage })
-      
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message: userMessage }),
-      })
-
-      console.log('Chat response status:', response.status)
-      const result = await response.json()
-      console.log('Chat response result:', result)
-
-      if (response.ok) {
-        // Add assistant response to chat
-        const assistantMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          content: result.answer || result.message, // Support both new and old format
-          role: "assistant",
-          timestamp: new Date(),
-          sources: result.sources, // Include sources if available
-        }
-        setChatMessages((prev) => [...prev, assistantMessage])
-      } else {
-        console.error('Chat API error:', result)
-        setChatError(result.message || "Failed to send message")
-      }
-    } catch {
-      setChatError("Network error occurred while sending message")
-    } finally {
-      setIsSendingMessage(false)
-    }
-  }
-
-  const closeChatError = () => {
-    setChatError(null)
-  }
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case "upload":
-        return (
-          <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Upload Files</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
-                  <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                    Drop PDF files here or click to upload
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Only PDF files are supported • Maximum 10MB
-                  </p>
-                  <button
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={handleFileSelect}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? "Uploading..." : "Choose PDF File"}
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </div>
-
-                {/* Message Display */}
-                {uploadMessage && (
-                  <div
-                    className={`p-4 rounded-lg border ${
-                      messageType === "success"
-                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
-                        : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        {messageType === "success" ? (
-                          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
-                        )}
-                        <p
-                          className={`text-sm ${
-                            messageType === "success"
-                              ? "text-green-800 dark:text-green-200"
-                              : "text-red-800 dark:text-red-200"
-                          }`}
-                        >
-                          {uploadMessage}
-                        </p>
-                      </div>
-                      <button
-                        onClick={closeMessage}
-                        className={`p-1 rounded-md hover:bg-opacity-20 ${
-                          messageType === "success"
-                            ? "text-green-600 dark:text-green-400 hover:bg-green-600"
-                            : "text-red-600 dark:text-red-400 hover:bg-red-600"
-                        }`}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      case "chat":
-        return (
-          <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Chat Interface</h2>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {/* Chat Messages */}
-                <div className="h-96 border rounded-lg p-4 bg-gray-50 dark:bg-gray-800 dark:border-gray-600 overflow-y-auto">
-                  <div className="space-y-3">
-                    {/* Welcome Message */}
-                    {chatMessages.length === 0 && (
-                      <div className="flex flex-col items-center justify-center h-full text-center">
-                        <div className="mb-4">
-                          <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <span className="text-white text-xl">📄</span>
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                            Policy Assistant
-                          </h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 max-w-xs">
-                            Hi! I'm your Policy Assistant. Upload documents and ask me anything about your policies! 📄✨
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {chatMessages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`p-3 rounded-lg max-w-xs ${
-                          message.role === "assistant"
-                            ? "bg-blue-100 dark:bg-blue-900"
-                            : "bg-white dark:bg-gray-700 ml-auto shadow-sm"
-                        }`}
-                      >
-                        <p className="text-sm text-gray-800 dark:text-gray-200">{message.content}</p>
-                        {message.sources && message.sources.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Sources:</p>
-                            <div className="space-y-1">
-                              {message.sources.map((source, index) => (
-                                <p key={index} className="text-xs text-blue-600 dark:text-blue-400">
-                                  • {source}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {isSendingMessage && (
-                      <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-lg max-w-xs">
-                        <p className="text-sm text-gray-800 dark:text-gray-200">Thinking...</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Chat Error Display */}
-                {chatError && (
-                  <div className="p-3 rounded-lg border bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5" />
-                        <p className="text-sm text-red-800 dark:text-red-200">{chatError}</p>
-                      </div>
-                      <button
-                        onClick={closeChatError}
-                        className="p-1 rounded-md text-red-600 dark:text-red-400 hover:bg-red-600 hover:bg-opacity-20"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Chat Input */}
-                <form onSubmit={handleChatSubmit} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Ask about your policy documents..."
-                    disabled={isSendingMessage}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!chatInput.trim() || isSendingMessage}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Send className="h-4 w-4" />
-                    {isSendingMessage ? "Sending..." : "Send"}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        )
-      default:
-        return null
-    }
-  }
-
-  // Show loading while determining auth state
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
-        
-        <style jsx>{`
-          .loading-container {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          }
-
-          .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
-          }
-
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-
-          p {
-            color: white;
-            font-size: 16px;
-          }
-        `}</style>
-      </div>
-    )
-  }
-
-  // Main app UI for authenticated users
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Navigation Header */}
-      <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Policy Pilot
-              </h1>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <FileText className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div className="flex items-center space-x-4">
-              <ThemeToggle />
-              <button
-                onClick={() => signOut()}
-                className="bg-red-500 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-600 transition-colors"
-              >
-                Sign Out
-              </button>
-            </div>
+            <span className="text-xl font-bold text-foreground">Policy Pilot</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <Link href="/auth/login">
+              <Button variant="outline">Sign In</Button>
+            </Link>
+            <Link href="/auth/login">
+              <Button>Get Started</Button>
+            </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Upload & Chat
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300">
-              Upload documents and chat with AI assistance
+      {/* Hero Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto text-center max-w-4xl">
+          <div className="inline-flex items-center gap-2 bg-muted px-3 py-1 rounded-full text-sm text-muted-foreground mb-6">
+            <Sparkles className="h-4 w-4" />
+            AI-Powered Document Analysis
+          </div>
+          <h1 className="text-5xl font-bold text-foreground mb-6 text-balance">
+            Transform Your Documents with
+            <span className="text-primary"> AI Intelligence</span>
+          </h1>
+          <p className="text-xl text-muted-foreground mb-8 text-pretty max-w-2xl mx-auto">
+            Upload, analyze, and chat with your documents using advanced AI. Get instant insights, summaries, and
+            answers from your policy documents.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/auth/login">
+              <Button size="lg" className="text-lg px-8">
+                Start Free Trial
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent">
+              Watch Demo
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-foreground mb-4">Everything you need for document intelligence</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Powerful AI tools to help you understand, analyze, and interact with your documents like never before.
             </p>
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="flex justify-center mb-8">
-            <div className="flex bg-white dark:bg-gray-800 rounded-lg shadow-sm p-1">
-              {navigationItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => setActiveTab(item.key)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      activeTab === item.key
-                        ? "bg-blue-600 text-white"
-                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="border-border">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <CardTitle>Smart Upload</CardTitle>
+                <CardDescription>Drag and drop PDF documents for instant AI processing and analysis</CardDescription>
+              </CardHeader>
+            </Card>
 
-          {/* Content Area */}
-          <div className="flex justify-center">
-            {renderContent()}
+            <Card className="border-border">
+              <CardHeader>
+                <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center mb-4">
+                  <MessageCircle className="h-6 w-6 text-secondary" />
+                </div>
+                <CardTitle>AI Chat</CardTitle>
+                <CardDescription>
+                  Ask questions about your documents and get intelligent, contextual responses
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="border-border">
+              <CardHeader>
+                <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
+                  <BarChart3 className="h-6 w-6 text-accent" />
+                </div>
+                <CardTitle>Analytics Dashboard</CardTitle>
+                <CardDescription>Track document insights, usage patterns, and AI interaction metrics</CardDescription>
+              </CardHeader>
+            </Card>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl font-bold text-foreground mb-6">Why choose Policy Pilot?</h2>
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Zap className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-2">Lightning Fast</h3>
+                    <p className="text-muted-foreground">Process and analyze documents in seconds, not hours</p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 bg-secondary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Shield className="h-4 w-4 text-secondary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-2">Secure & Private</h3>
+                    <p className="text-muted-foreground">
+                      Your documents are encrypted and never shared with third parties
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="h-4 w-4 text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-2">AI-Powered Insights</h3>
+                    <p className="text-muted-foreground">
+                      Get intelligent summaries, key points, and actionable insights
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-muted/30 rounded-2xl p-8 text-center">
+              <div className="w-24 h-24 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <FileText className="h-12 w-12 text-primary" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-4">Ready to get started?</h3>
+              <p className="text-muted-foreground mb-6">
+                Join thousands of professionals who trust Policy Pilot for their document analysis needs.
+              </p>
+              <Link href="/auth/login">
+                <Button size="lg">
+                  Start Your Free Trial
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-12 px-4">
+        <div className="container mx-auto text-center">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center">
+              <FileText className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-foreground">Policy Pilot</span>
+          </div>
+          <p className="text-muted-foreground">© 2024 Policy Pilot. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   )
 }
