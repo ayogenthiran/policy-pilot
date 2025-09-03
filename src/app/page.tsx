@@ -3,10 +3,23 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, MessageCircle, BarChart3, ArrowRight, Sparkles, Shield, Zap } from "lucide-react"
-import Link from "next/link"
+import { useAuth } from "@/components/auth/AuthProvider"
+import { useRouter } from "next/navigation"
 import ThemeToggle from "@/components/theme-toggle"
 
 export default function LandingPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  const handleAuthClick = () => {
+    if (loading) return;
+    if (user) {
+      router.push("/dashboard");
+    } else {
+      router.push("/auth/login");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -20,12 +33,8 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Link href="/auth/login">
-              <Button variant="outline">Sign In</Button>
-            </Link>
-            <Link href="/auth/login">
-              <Button>Get Started</Button>
-            </Link>
+            <Button variant="outline" onClick={handleAuthClick} disabled={loading}>Sign In</Button>
+            <Button onClick={handleAuthClick} disabled={loading}>Get Started</Button>
           </div>
         </div>
       </header>
@@ -46,12 +55,10 @@ export default function LandingPage() {
             answers from your policy documents.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/login">
-              <Button size="lg" className="text-lg px-8">
-                Start Free Trial
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+            <Button size="lg" className="text-lg px-8" onClick={handleAuthClick} disabled={loading}>
+              Start Free Trial
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
             <Button variant="outline" size="lg" className="text-lg px-8 bg-transparent">
               Watch Demo
             </Button>
@@ -153,12 +160,10 @@ export default function LandingPage() {
               <p className="text-muted-foreground mb-6">
                 Join thousands of professionals who trust Policy Pilot for their document analysis needs.
               </p>
-              <Link href="/auth/login">
-                <Button size="lg">
-                  Start Your Free Trial
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
+              <Button size="lg" onClick={handleAuthClick} disabled={loading}>
+                Start Your Free Trial
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>
