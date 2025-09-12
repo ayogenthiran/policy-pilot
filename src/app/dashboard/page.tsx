@@ -408,7 +408,7 @@ export default function DashboardPage() {
                   {user?.name?.charAt(0) || "U"}
                 </span>
               </div>
-              <span className="text-sm text-sidebar-foreground">{user?.name}</span>
+              <span className="text-sm text-sidebar-foreground">AY</span>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />

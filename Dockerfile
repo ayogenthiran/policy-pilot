@@ -1,59 +1,67 @@
-# Use the official Node.js runtime as the base image
-FROM node:18-alpine AS base
+# Use Python 3.11 slim image as base
+FROM python:3.11-slim
 
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Set work directory
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    # Essential build tools
+    build-essential \
+    gcc \
+    g++ \
+    # Tesseract OCR for document processing
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    # Image processing libraries
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    # Additional utilities
+    curl \
+    wget \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-ENV NEXT_TELEMETRY_DISABLED 1
+# Create necessary directories
+RUN mkdir -p /app/uploads /app/data /app/logs /app/models && \
+    chown -R appuser:appuser /app
 
-RUN npm run build
+# Copy requirements first for better caching
+COPY requirements.txt /app/
 
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-ENV NODE_ENV production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-ENV NEXT_TELEMETRY_DISABLED 1
+# Copy application code
+COPY . /app/
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Create necessary directories and set permissions
+RUN mkdir -p /app/uploads /app/data /app/logs /app/models && \
+    chown -R appuser:appuser /app
 
-COPY --from=builder /app/public ./public
+# Switch to non-root user
+USER appuser
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+# Expose ports
+EXPOSE 8000 8501
 
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health/live || exit 1
 
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT 3000
-# set hostname to localhost
-ENV HOSTNAME "0.0.0.0"
-
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"] 
+# Default command
+CMD ["python", "src/main.py"]
