@@ -9,7 +9,7 @@ Under the hood it uses **RAG** (retrieval-augmented generation): policy text is 
 ## Quick start
 
 ```bash
-cp .env.example .env   # set OPENAI_API_KEY
+# Create `.env` with at least OPENAI_API_KEY=...
 python3 -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 docker compose up -d
@@ -17,7 +17,3 @@ python scripts/vectordb_cli.py create policy_documents
 python scripts/ingest.py data/your-policy.pdf
 streamlit run streamlit_app.py
 ```
-
-Run commands from the **repository root** so `import policy_pilot` works.
-
-MIT — see [LICENSE](LICENSE).

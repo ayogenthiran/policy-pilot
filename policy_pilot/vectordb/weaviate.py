@@ -8,7 +8,7 @@ import re
 
 import weaviate
 from weaviate.auth import Auth
-from weaviate.classes.config import Configure, DataType, Property
+from weaviate.classes.config import Configure, DataType, Property, VectorDistances
 
 from policy_pilot.config import Settings, get_settings
 
@@ -97,9 +97,22 @@ def delete_collection_if_exists(client: weaviate.WeaviateClient, class_name: str
 
 
 def create_chunk_collection(client: weaviate.WeaviateClient, class_name: str) -> None:
+    """
+    Create a chunk collection with self-provided embeddings and an HNSW vector index.
+
+    Dense retrieval uses the HNSW graph for approximate nearest-neighbor search (cosine).
+    Recreate the collection (e.g. ingest with ``recreate_collection=True``) to apply
+    changes to immutable HNSW parameters.
+    """
     client.collections.create(
         name=class_name,
-        vector_config=Configure.Vectors.self_provided(),
+        vector_config=Configure.Vectors.self_provided(
+            vector_index_config=Configure.VectorIndex.hnsw(
+                distance_metric=VectorDistances.COSINE,
+                ef_construction=128,
+                max_connections=32,
+            ),
+        ),
         properties=CHUNK_METADATA_PROPERTIES,
     )
 

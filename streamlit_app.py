@@ -8,17 +8,23 @@ from typing import Any
 import streamlit as st
 
 from policy_pilot.config import get_settings
+from policy_pilot.rag.retriever import ChunkMetadataFilter
 from policy_pilot.rag.service import query_rag
 
 st.set_page_config(page_title="Policy Pilot", layout="wide")
 
 
-def _render_sidebar() -> tuple[str, int]:
+def _render_sidebar() -> tuple[str, int, ChunkMetadataFilter | None]:
     s = get_settings()
     st.sidebar.subheader("Settings")
     slug = st.sidebar.text_input("Collection slug", value=s.collection_slug)
     top_k = st.sidebar.number_input(
         "Chunks to retrieve", min_value=1, max_value=30, value=s.rag_top_k
+    )
+    st.sidebar.caption("Optional: restrict retrieval to one PDF (exact file name).")
+    only_file = st.sidebar.text_input("Filter by file name", value="").strip()
+    meta: ChunkMetadataFilter | None = (
+        ChunkMetadataFilter(file_name=only_file) if only_file else None
     )
     st.sidebar.divider()
     st.sidebar.markdown(
@@ -33,22 +39,29 @@ def _render_sidebar() -> tuple[str, int]:
             st.sidebar.caption("PDFs in `data/`:")
             for p in pdfs:
                 st.sidebar.text(p.name)
-    return slug.strip() or s.collection_slug, int(top_k)
+    return slug.strip() or s.collection_slug, int(top_k), meta
 
 
 def _render_sources(sources: list[dict[str, Any]]) -> None:
     with st.expander("Sources"):
         for i, src in enumerate(sources, start=1):
+            score = src.get("score")
+            score_s = f" · hybrid score {score:.4f}" if isinstance(score, (int, float)) else ""
             st.markdown(
                 f"**[{i}]** `{src.get('file_name')}` p.{src.get('page')} "
-                f"· chunk {src.get('chunk_index')}"
+                f"· chunk {src.get('chunk_index')}{score_s}"
             )
             body = src.get("text") or ""
             clipped = body[:800] + ("…" if len(body) > 800 else "")
             st.text(clipped)
 
 
-def _run_turn(question: str, slug: str, top_k: int) -> None:
+def _run_turn(
+    question: str,
+    slug: str,
+    top_k: int,
+    metadata_filter: ChunkMetadataFilter | None,
+) -> None:
     st.session_state.messages.append(("user", question))
     with st.chat_message("user"):
         st.markdown(question)
@@ -60,6 +73,7 @@ def _run_turn(question: str, slug: str, top_k: int) -> None:
                     question,
                     collection_slug=slug or None,
                     top_k=top_k,
+                    metadata_filter=metadata_filter,
                 )
             st.markdown(out["answer"])
             _render_sources(out["sources"])
@@ -74,7 +88,7 @@ def main() -> None:
     st.title("Policy Pilot")
     st.caption("RAG over PDFs in Weaviate · OpenAI embeddings + chat")
 
-    slug, top_k = _render_sidebar()
+    slug, top_k, metadata_filter = _render_sidebar()
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -85,7 +99,7 @@ def main() -> None:
 
     question = st.chat_input("Ask about your policy documents…")
     if question:
-        _run_turn(question, slug, top_k)
+        _run_turn(question, slug, top_k, metadata_filter)
 
 
 # Streamlit runs this file in a synthetic __main__ module; do not gate on __name__.

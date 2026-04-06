@@ -19,7 +19,6 @@ htmlcov
 # Secrets (use build args or runtime env in production)
 .env
 .env.*
-!.env.example
 
 # Local PDFs / large assets (mount or copy only what the image needs)
 data
