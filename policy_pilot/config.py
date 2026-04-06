@@ -31,8 +31,8 @@ class Settings(BaseSettings):
 
     collection_slug: str = "policy_documents"
 
-    chunk_size: int = 1200
-    chunk_overlap: int = 200
+    chunk_size_tokens: int = 512
+    chunk_overlap_tokens: int = 64
 
 
 @lru_cache

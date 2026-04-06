@@ -6,7 +6,7 @@ from typing import Any
 
 import weaviate
 
-PROP_NAMES = ["text", "source_file", "file_name", "page", "source"]
+PROP_NAMES = ["text", "source_file", "file_name", "page", "chunk_index", "source"]
 
 
 def search_chunks(

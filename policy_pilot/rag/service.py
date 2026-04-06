@@ -35,7 +35,10 @@ def _context_from_hits(hits: list[dict[str, Any]]) -> str:
     blocks: list[str] = []
     for i, h in enumerate(hits, start=1):
         text = h.get("text") or ""
-        meta = f"(source={h.get('file_name')}, page={h.get('page')})"
+        meta = (
+            f"(source={h.get('file_name')}, page={h.get('page')}, "
+            f"chunk={h.get('chunk_index')})"
+        )
         blocks.append(f"[{i}] {meta}\n{text}")
     return "\n\n".join(blocks) if blocks else "(no retrieved context)"
 

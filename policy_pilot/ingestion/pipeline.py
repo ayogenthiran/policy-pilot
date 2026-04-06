@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from weaviate.classes.data import DataObject
 
 from policy_pilot.config import get_settings
+from policy_pilot.ingestion.chunking import chunk_pages
 from policy_pilot.ingestion.embeddings import embed_texts
 from policy_pilot.ingestion.pdf import load_pdf_pages
 from policy_pilot.vectordb import (
@@ -15,25 +15,6 @@ from policy_pilot.vectordb import (
     create_chunk_collection,
     library_class_name,
 )
-
-
-def _chunk_pages(
-    pages: list[tuple[int, str]],
-    chunk_size: int,
-    chunk_overlap: int,
-) -> list[tuple[int, str]]:
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        length_function=len,
-    )
-    rows: list[tuple[int, str]] = []
-    for page_num, text in pages:
-        for chunk in splitter.split_text(text):
-            chunk = chunk.strip()
-            if chunk:
-                rows.append((page_num, chunk))
-    return rows
 
 
 def ingest_pdf(
@@ -57,11 +38,11 @@ def ingest_pdf(
     if not pages:
         raise ValueError(f"No extractable text in {path}")
 
-    rows = _chunk_pages(pages, s.chunk_size, s.chunk_overlap)
+    rows = chunk_pages(pages, s)
     if not rows:
         raise ValueError(f"No chunks produced from {path}")
 
-    texts = [t for _, t in rows]
+    texts = [t for _, _, t in rows]
 
     client = connect_weaviate()
     try:
@@ -78,7 +59,7 @@ def ingest_pdf(
             batch_rows = rows[start : start + batch_size]
             vectors = embed_texts(batch_texts)
             objects: list[DataObject] = []
-            for (page_num, text), vec in zip(batch_rows, vectors, strict=True):
+            for (page_num, chunk_index, text), vec in zip(batch_rows, vectors, strict=True):
                 objects.append(
                     DataObject(
                         properties={
@@ -86,6 +67,7 @@ def ingest_pdf(
                             "source_file": str(path),
                             "file_name": path.name,
                             "page": page_num,
+                            "chunk_index": chunk_index,
                             "source": "pdf",
                         },
                         vector=vec,

@@ -39,7 +39,10 @@ def _render_sidebar() -> tuple[str, int]:
 def _render_sources(sources: list[dict[str, Any]]) -> None:
     with st.expander("Sources"):
         for i, src in enumerate(sources, start=1):
-            st.markdown(f"**[{i}]** `{src.get('file_name')}` p.{src.get('page')}")
+            st.markdown(
+                f"**[{i}]** `{src.get('file_name')}` p.{src.get('page')} "
+                f"· chunk {src.get('chunk_index')}"
+            )
             body = src.get("text") or ""
             clipped = body[:800] + ("…" if len(body) > 800 else "")
             st.text(clipped)

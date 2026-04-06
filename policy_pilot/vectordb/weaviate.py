@@ -86,6 +86,7 @@ CHUNK_METADATA_PROPERTIES: list[Property] = [
     Property(name="source_file", data_type=DataType.TEXT),
     Property(name="file_name", data_type=DataType.TEXT),
     Property(name="page", data_type=DataType.INT),
+    Property(name="chunk_index", data_type=DataType.INT),
     Property(name="source", data_type=DataType.TEXT),
 ]
 
