@@ -1,99 +1,25 @@
-version: '3.8'
-
 services:
-  opensearch:
-    image: opensearchproject/opensearch:2.11.0
-    container_name: policy-pilot-opensearch
-    environment:
-      - discovery.type=single-node
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-      - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=admin"
+  weaviate:
+    image: semitechnologies/weaviate:1.27.9
     ports:
-      - "9200:9200"
-      - "9600:9600"
+      - "8080:8080"
+      - "50051:50051"
     volumes:
-      - opensearch_data:/usr/share/opensearch/data
-      - ./opensearch/config:/usr/share/opensearch/config
-    networks:
-      - policy-pilot-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-
-  opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:2.11.0
-    container_name: policy-pilot-dashboards
+      - weaviate_data:/var/lib/weaviate
     environment:
-      - OPENSEARCH_HOSTS=http://opensearch:9200
-      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
-    ports:
-      - "5601:5601"
-    depends_on:
-      opensearch:
-        condition: service_healthy
-    networks:
-      - policy-pilot-network
-    restart: unless-stopped
-
-  policy-pilot-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: policy-pilot-api
-    environment:
-      - ENVIRONMENT=development
-      - OPENSEARCH_URL=http://opensearch:9200
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=gpt-4o-mini
-      - CORS_ORIGINS=["http://localhost:3000", "http://localhost:3001"]
-      - LOG_LEVEL=INFO
-    ports:
-      - "8000:8000"
-      - "8501:8501"
-    volumes:
-      - ./uploads:/app/uploads
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./models:/app/models
-    depends_on:
-      opensearch:
-        condition: service_healthy
-    networks:
-      - policy-pilot-network
+      QUERY_DEFAULTS_LIMIT: "25"
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "none"
+      ENABLE_MODULES: ""
+      CLUSTER_HOSTNAME: "node1"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health/live || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-
-  # Optional: Redis for caching (if needed in future)
-  redis:
-    image: redis:7-alpine
-    container_name: policy-pilot-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - policy-pilot-network
-    restart: unless-stopped
-    profiles:
-      - cache
+      start_period: 40s
 
 volumes:
-  opensearch_data:
-    driver: local
-  redis_data:
-    driver: local
-
-networks:
-  policy-pilot-network:
-    driver: bridge
+  weaviate_data:
