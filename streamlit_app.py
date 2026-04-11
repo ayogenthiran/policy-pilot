@@ -8,16 +8,39 @@ from typing import Any
 import streamlit as st
 
 from policy_pilot.config import get_settings
+from policy_pilot.knowledge_base import list_knowledge_bases
 from policy_pilot.rag.retriever import ChunkMetadataFilter
 from policy_pilot.rag.service import query_rag
+from policy_pilot.vectordb import library_class_name
 
 st.set_page_config(page_title="Policy Pilot", layout="wide")
 
 
-def _render_sidebar() -> tuple[str, int, ChunkMetadataFilter | None]:
+@st.cache_data(ttl=30)
+def _cached_kb_names() -> list[str]:
+    try:
+        return list_knowledge_bases()
+    except Exception:
+        return []
+
+
+def _render_sidebar() -> tuple[str | None, str, int, ChunkMetadataFilter | None]:
     s = get_settings()
-    st.sidebar.subheader("Settings")
-    slug = st.sidebar.text_input("Collection slug", value=s.collection_slug)
+    st.sidebar.subheader("Knowledge base")
+    names = _cached_kb_names()
+    default_class = library_class_name(s.collection_slug)
+    opts = ["(use slug below)"] + sorted(names)
+    default_index = opts.index(default_class) if default_class in names else 0
+    kb_choice = st.sidebar.selectbox(
+        "Weaviate collection",
+        opts,
+        index=min(default_index, len(opts) - 1),
+        help="Chunked vectors already in Weaviate are queried as-is; pick a collection or use a slug.",
+    )
+    weaviate_class = None if kb_choice == "(use slug below)" else kb_choice
+
+    st.sidebar.caption("Settings")
+    slug = st.sidebar.text_input("Collection slug (when using slug)", value=s.collection_slug)
     top_k = st.sidebar.number_input(
         "Chunks to retrieve", min_value=1, max_value=30, value=s.rag_top_k
     )
@@ -39,7 +62,12 @@ def _render_sidebar() -> tuple[str, int, ChunkMetadataFilter | None]:
             st.sidebar.caption("PDFs in `data/`:")
             for p in pdfs:
                 st.sidebar.text(p.name)
-    return slug.strip() or s.collection_slug, int(top_k), meta
+    return (
+        weaviate_class,
+        slug.strip() or s.collection_slug,
+        int(top_k),
+        meta,
+    )
 
 
 def _render_sources(sources: list[dict[str, Any]]) -> None:
@@ -58,6 +86,7 @@ def _render_sources(sources: list[dict[str, Any]]) -> None:
 
 def _run_turn(
     question: str,
+    weaviate_class: str | None,
     slug: str,
     top_k: int,
     metadata_filter: ChunkMetadataFilter | None,
@@ -72,6 +101,7 @@ def _run_turn(
                 out = query_rag(
                     question,
                     collection_slug=slug or None,
+                    weaviate_class_name=weaviate_class,
                     top_k=top_k,
                     metadata_filter=metadata_filter,
                 )
@@ -86,9 +116,9 @@ def _run_turn(
 
 def main() -> None:
     st.title("Policy Pilot")
-    st.caption("RAG over PDFs in Weaviate · OpenAI embeddings + chat")
+    st.caption("Knowledge base = Weaviate chunk collections · OpenAI embeddings + chat")
 
-    slug, top_k, metadata_filter = _render_sidebar()
+    weaviate_class, slug, top_k, metadata_filter = _render_sidebar()
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -99,7 +129,7 @@ def main() -> None:
 
     question = st.chat_input("Ask about your policy documents…")
     if question:
-        _run_turn(question, slug, top_k, metadata_filter)
+        _run_turn(question, weaviate_class, slug, top_k, metadata_filter)
 
 
 # Streamlit runs this file in a synthetic __main__ module; do not gate on __name__.
