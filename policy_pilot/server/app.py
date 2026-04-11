@@ -16,6 +16,10 @@ app = FastAPI(title="Policy Pilot RAG", version=__version__)
 class QueryBody(BaseModel):
     question: str = Field(..., min_length=1, max_length=4000)
     collection_slug: str | None = None
+    weaviate_class_name: str | None = Field(
+        None,
+        description="Exact Weaviate collection name (overrides slug mapping when set).",
+    )
     top_k: int | None = Field(None, ge=1, le=50)
 
 
@@ -35,6 +39,7 @@ def post_query(body: QueryBody) -> QueryResponse:
         out = query_rag(
             body.question,
             collection_slug=body.collection_slug,
+            weaviate_class_name=body.weaviate_class_name,
             top_k=body.top_k,
         )
         return QueryResponse(answer=out["answer"], sources=out["sources"])
