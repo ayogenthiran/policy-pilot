@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     weaviate_grpc_secure: bool = False
     weaviate_api_key: str | None = None
 
+    # Default knowledge base: mapped to Weaviate class via library_class_name (see vectordb).
     collection_slug: str = "policy_documents"
 
     chunk_size_tokens: int = 512
