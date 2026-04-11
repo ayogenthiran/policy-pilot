@@ -81,11 +81,16 @@ def query_rag(
     question: str,
     *,
     collection_slug: str | None = None,
+    weaviate_class_name: str | None = None,
     top_k: int | None = None,
     metadata_filter: ChunkMetadataFilter | None = None,
 ) -> dict[str, Any]:
     """
     Embed the question, retrieve chunks, call the chat model with context.
+
+    Use ``weaviate_class_name`` to query an existing Weaviate collection by exact name
+    (for data already in the vector DB). Otherwise ``collection_slug`` is mapped with
+    ``library_class_name`` (same as ingest).
 
     Returns ``{"answer": str, "sources": list[dict]}``.
     """
@@ -93,8 +98,12 @@ def query_rag(
     if not s.openai_api_key:
         raise ValueError("OPENAI_API_KEY is not set.")
 
-    slug = collection_slug or s.collection_slug
-    class_name = library_class_name(slug)
+    direct = (weaviate_class_name or "").strip()
+    if direct:
+        class_name = direct
+    else:
+        slug = collection_slug or s.collection_slug
+        class_name = library_class_name(slug)
     k = top_k if top_k is not None else s.rag_top_k
 
     hits = _retrieve_hits(s, question, class_name, k, metadata_filter)
